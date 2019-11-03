@@ -1,0 +1,15 @@
+{
+  "name": "com.hirame.heracles",
+  "version": "0.0.0",
+  "displayName": "Hirame Heracles",
+  "description": "A Simple flexible character controller",
+  "unity": "2019.1",
+  "unityRelease": "0b5",
+  "keywords": [],
+  "author": {
+    "name": "Bernhard Miettinen",
+    "email": "bernhard.miettinen@gmail.com",
+    "url": "https://www.github.com/sunrisehirame"
+  },
+  "type": "library"
+}
