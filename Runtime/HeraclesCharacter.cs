@@ -10,7 +10,8 @@ namespace Hirame.Heracles
     {
         [Header ("Debug")]
         public float CurretVelocity;
-        
+        public PhysicMaterial SurfaceMaterial;
+
         [Header ("Settings")]
         public float Speed = 5f;
         public float Acceleration = 20f;
@@ -25,6 +26,9 @@ namespace Hirame.Heracles
         
         [Header ("Motion")]
         [SerializeField] private SurfaceDetector groundCheck;
+        [SerializeField] private SurfaceDetector wallCheckLeft;
+        [SerializeField] private SurfaceDetector wallCheckRight;
+        
         [SerializeField] private KineticMover mover;
         [SerializeField] private JumpController jump;
         
@@ -60,7 +64,8 @@ namespace Hirame.Heracles
             
             groundInfo = groundCheck.Scan (attachedRigidbody.position);
             groundInfo.InContact &= hasMadeFullSurfaceContact;
-            
+            SurfaceMaterial = groundInfo.GetPhysicsMaterial ();
+
             if (groundInfo.InContact)
             {
                 if (!wasOnGround)

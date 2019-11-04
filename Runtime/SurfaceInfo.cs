@@ -10,9 +10,19 @@ namespace Hirame.Heracles
     {
         public bool InContact;
 
-        public LayerMask Layer;
+        public Collider ContactCollider;
         public Vector3 Normal;
 
+        public PhysicMaterial GetPhysicsMaterial ()
+        {
+            return ContactCollider ? ContactCollider.sharedMaterial : null;
+        }
+        
+        public bool IsOnLayer (LayerMask layer)
+        {
+            return (1 << ContactCollider.gameObject.layer) == layer;
+        }
+        
         private static readonly SurfaceInfo none = new SurfaceInfo ();
         public static ref readonly SurfaceInfo Default => ref none;
     }

@@ -26,7 +26,7 @@ namespace Hirame.Heracles
             {
                 InContact = true,
                 Normal = hitInfo.normal,
-                Layer = hitInfo.collider.gameObject.layer
+                ContactCollider = hitInfo.collider
             };
         }
 
