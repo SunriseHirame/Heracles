@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Hirame.Heracles
 {
-    public enum OrientationMode { World, Gravity, Surface }
+    public enum OrientationMode { None, World, Gravity, Surface }
     
     public class HeraclesCharacter : MonoBehaviour
     {
@@ -16,6 +16,7 @@ namespace Hirame.Heracles
         public float Speed = 5f;
         public float Acceleration = 20f;
         public float JumpHeight;
+        public float StepHeight = 0.2f;
 
         public bool RestoreGroundOnGroundCollision = true;
         public OrientationMode AlignTo = OrientationMode.Gravity;
@@ -32,14 +33,15 @@ namespace Hirame.Heracles
         [SerializeField] private KineticMover mover;
         [SerializeField] private JumpController jump;
         
-        private Rigidbody attachedRigidbody;
+        [SerializeField] private Rigidbody attachedRigidbody;
 
         private float drag = 1f;
 
         private bool jumpFlag;
         
         private SurfaceInfo groundInfo;
-        private SurfaceInfo wallInfo;
+        private SurfaceInfo wallInfoLeft;
+        private SurfaceInfo wallInfoRight;
 
         private bool hasMadeFullSurfaceContact;
         
@@ -62,9 +64,20 @@ namespace Hirame.Heracles
 
             var wasOnGround = groundInfo.InContact;
             
-            groundInfo = groundCheck.Scan (attachedRigidbody.position);
-            groundInfo.InContact &= hasMadeFullSurfaceContact;
+            groundInfo = groundCheck.GetSurfaceInfo (attachedRigidbody.position, StepHeight);
+            
+            if (RestoreGroundOnGroundCollision)
+                groundInfo.InContact &= hasMadeFullSurfaceContact;
+            
             SurfaceMaterial = groundInfo.GetPhysicsMaterial ();
+
+            wallInfoLeft = wallCheckLeft.GetSurfaceInfo (attachedRigidbody.position, 0.1f);
+            wallInfoRight = wallCheckRight.GetSurfaceInfo (attachedRigidbody.position, 0.1f);
+
+            if (wallInfoLeft.InContact || wallInfoRight.InContact)
+            {
+                Debug.Log ($"{wallInfoLeft.ContactCollider} | {wallInfoRight.ContactCollider}");
+            }
 
             if (groundInfo.InContact)
             {
@@ -73,14 +86,15 @@ namespace Hirame.Heracles
             }
             else
             {
-                hasMadeFullSurfaceContact = false;
-                
                 if (wasOnGround)
+                {
+                    hasMadeFullSurfaceContact = false;
                     jump.OnDetachedFromGround ();
+                }
             }
             
             var input = Input.GetAxis ("Horizontal");
-
+            
             Orientate ();
 
             ResolveJump (ref velocity);
@@ -90,19 +104,25 @@ namespace Hirame.Heracles
             UpdateDrag ();
 
             var acceleration = input * Acceleration;
-            
+
+
             var velocityMagnitude = velocity.x;
-            velocityMagnitude = Kinetics.AccelerateTowards (velocityMagnitude, acceleration, drag, deltaTime);
+            var newVelocity = Kinetics.AccelerateTowards (velocityMagnitude, acceleration, drag, deltaTime);
+
+            if (SurfaceMaterial)
+                newVelocity -= (newVelocity - velocityMagnitude) * (1 - SurfaceMaterial.dynamicFriction);
 
             CurretVelocity = velocityMagnitude;
-            attachedRigidbody.velocity = new Vector3(velocityMagnitude, velocity.y, velocity.z);
+            attachedRigidbody.velocity = new Vector3(newVelocity, velocity.y, velocity.z);
+
+            attachedRigidbody.drag = math.abs (input) < 0.1f ? 1 : 0;
         }
 
         private void ResolveJump (ref Vector3 velocity)
         {
-            if (jumpFlag && jump.CanJump (in groundInfo, in wallInfo))
+            if (jumpFlag && jump.CanJump (in groundInfo, in wallInfoLeft))
             {
-                var jumpVelocity = jump.GetJumpVelocity (JumpHeight, in groundInfo, in wallInfo);
+                var jumpVelocity = jump.GetJumpVelocity (JumpHeight, in groundInfo, in wallInfoLeft);
                 velocity.y = jumpVelocity.y;
             }
 
@@ -143,25 +163,32 @@ namespace Hirame.Heracles
                 case OrientationMode.Surface:
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException ();
+                    break;
             }
         }
 
         private void OnCollisionEnter (Collision collision)
         {
-            if (!RestoreGroundOnGroundCollision || groundInfo.InContact)
+            if (!RestoreGroundOnGroundCollision)
                 return;
 
             var contacts = collision.contactCount;
             for (var i = 0; i < contacts; i++)
             {
                 var contact = collision.GetContact (i);
-                if (contact.point.y > attachedRigidbody.position.y + 0.1f)
+                if (contact.point.y > attachedRigidbody.position.y + StepHeight)
                     continue;
 
                 hasMadeFullSurfaceContact = true;
                 break;
             }
+        }
+
+        private void OnDrawGizmos ()
+        {
+            groundCheck.OnDrawGizmos (attachedRigidbody.position, StepHeight);
+            wallCheckLeft.OnDrawGizmos (attachedRigidbody.position, 0.05f);
+            wallCheckRight.OnDrawGizmos (attachedRigidbody.position, 0.05f);
         }
     }
 

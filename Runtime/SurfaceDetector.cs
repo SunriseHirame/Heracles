@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Runtime.CompilerServices;
+using Hirame.Pantheon;
+using UnityEngine;
 
 namespace Hirame.Heracles
 {
@@ -8,33 +10,51 @@ namespace Hirame.Heracles
         [SerializeField] private LayerMask validLayers;
         [SerializeField] private Vector3 scanSize = new Vector3 (0.4f, 0.02f, 0.04f);
         [SerializeField] private Vector3 offset = new Vector3 (0, 0.03f, 0);
-        [SerializeField] private Vector3 direction = Vector3.down;
+        [SerializeField] private AxialDirection direction = AxialDirection.Down;
         [SerializeField] private float maxDistance = 0.2f;
 
-        public SurfaceInfo Scan (in Vector3 origin)
+        private SurfaceInfo surfaceInfo;
+
+        public ref readonly SurfaceInfo GetSurfaceInfo (in Vector3 origin, float skinWidth)
         {
-            var startPosition = GetStartPosition (origin);
-            var checkDistance = maxDistance + scanSize.y * 1.1f + offset.y;
+            var startPosition = GetStartPosition (origin, skinWidth);
+            var checkDistance = GetCheckDistance (skinWidth);
+            var dir = direction.GetDirectionVector ();
             
-            var hitSomething = Physics.BoxCast (startPosition, scanSize, direction, out var hitInfo,
+            var hitSomething = Physics.BoxCast (startPosition, scanSize, dir, out var hitInfo,
                 Quaternion.identity, checkDistance, validLayers);
 
-            if (!hitSomething)
-                return SurfaceInfo.Default;
+            surfaceInfo = hitSomething
+                ? new SurfaceInfo
+                {
+                    InContact = true,
+                    Normal = hitInfo.normal,
+                    ContactCollider = hitInfo.collider
+                }
+                : SurfaceInfo.Default;
             
-            return new SurfaceInfo
-            {
-                InContact = true,
-                Normal = hitInfo.normal,
-                ContactCollider = hitInfo.collider
-            };
+            return ref surfaceInfo;
         }
 
-        private Vector3 GetStartPosition (Vector3 origin)
+        [MethodImpl (MethodImplOptions.AggressiveInlining)]
+        private Vector3 GetStartPosition (Vector3 origin, float skinWidth)
         {
-            origin += offset;
-            origin.y += scanSize.y * 1.1f;
+            origin += offset + direction.GetDirectionVector () * -skinWidth;
             return origin;
+        }
+
+        [MethodImpl (MethodImplOptions.AggressiveInlining)]
+        private float GetCheckDistance (float skinWidth)
+        {
+            return maxDistance + skinWidth;
+        }
+
+        public void OnDrawGizmos (in Vector3 origin, float skinWidth)
+        {
+            var start = GetStartPosition (origin, skinWidth);
+            var dir = direction.GetDirectionVector () * GetCheckDistance (skinWidth);
+            
+            Gizmos.DrawRay (start, dir);
         }
     }
 
