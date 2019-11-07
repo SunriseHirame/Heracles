@@ -13,6 +13,7 @@ namespace Hirame.Heracles
         public Collider ContactCollider;
         public Vector3 Normal;
 
+        // readonly
         public PhysicMaterial GetPhysicsMaterial ()
         {
             return ContactCollider ? ContactCollider.sharedMaterial : null;
