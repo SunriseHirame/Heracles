@@ -15,7 +15,9 @@ namespace Hirame.Heracles
 
         private SurfaceInfo surfaceInfo;
 
-        public ref readonly SurfaceInfo GetSurfaceInfo (in Vector3 origin, float skinWidth)
+        public ref readonly SurfaceInfo SurfaceInfo => ref surfaceInfo;
+        
+        public ref readonly SurfaceInfo UpdateGroundInfo (in Vector3 origin, float skinWidth)
         {
             var startPosition = GetStartPosition (origin, skinWidth);
             var checkDistance = GetCheckDistance (skinWidth);

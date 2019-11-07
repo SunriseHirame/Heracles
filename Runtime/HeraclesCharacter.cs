@@ -64,15 +64,15 @@ namespace Hirame.Heracles
 
             var wasOnGround = groundInfo.InContact;
             
-            groundInfo = groundCheck.GetSurfaceInfo (attachedRigidbody.position, StepHeight);
+            groundInfo = groundCheck.UpdateGroundInfo (attachedRigidbody.position, StepHeight);
             
             if (RestoreGroundOnGroundCollision)
                 groundInfo.InContact &= hasMadeFullSurfaceContact;
             
             SurfaceMaterial = groundInfo.GetPhysicsMaterial ();
 
-            wallInfoLeft = wallCheckLeft.GetSurfaceInfo (attachedRigidbody.position, 0.1f);
-            wallInfoRight = wallCheckRight.GetSurfaceInfo (attachedRigidbody.position, 0.1f);
+            wallInfoLeft = wallCheckLeft.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
+            wallInfoRight = wallCheckRight.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
 
             if (wallInfoLeft.InContact || wallInfoRight.InContact)
             {
