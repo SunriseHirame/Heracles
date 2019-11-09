@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.Mathematics;
+using UnityEngine;
 
 namespace Hirame.Heracles
 {
@@ -16,37 +17,66 @@ namespace Hirame.Heracles
         
         public bool CanJump (in SurfaceInfo groundInfo, in SurfaceInfo wallInfo)
         {
-            if (groundInfo.InContact)
+            if (jumpCount >= maxJumps)
+                return false;
+
+            if (airJump.Enabled)
                 return true;
 
-            if (jumpCount < maxJumps)
-                return airJump.Enabled;
+            if (wallInfo.InContact && wallJump.Enabled)
+                return true;
             
-            return false;
+            return groundInfo.InContact;
         }
         
-        public Vector3 GetJumpVelocity (float jumpHeight, in SurfaceInfo groundInfo, in SurfaceInfo wallInfo)
+        public Vector3 GetJumpVelocity (
+            float jumpHeight, float gravity, in SurfaceInfo groundInfo, in SurfaceInfo wallInfo)
         {
             jumpCount++;
-
-            var multiplier = 1f;
-            if (!groundInfo.InContact)
-                multiplier = airJump.Strength;
             
-            return new Vector3(
-                0, 
-                Kinetics.GetVelocityToReachApex (jumpHeight * multiplier, Physics.gravity.y), 
-                0);   
+            if (groundInfo.InContact)
+            {
+                return new Vector3 (
+                    0, 
+                    Kinetics.GetVelocityToReachApex (jumpHeight, gravity), 
+                    0);
+            }
+
+            if (wallJump.Enabled && wallInfo.InContact)
+            {
+                var yVelocity = Kinetics.GetVelocityToReachApex (
+                    jumpHeight * wallJump.Strength, gravity);
+                
+                yVelocity = math.cos (yVelocity * wallJump.Verticality);
+                var xVelocity = math.sin (yVelocity);
+                
+                return new Vector3 (xVelocity, yVelocity, 0f);
+            }
+
+            if (airJump.Enabled)
+            {
+                return new Vector3 (
+                    0,
+                    Kinetics.GetVelocityToReachApex (jumpHeight * airJump.Strength, gravity),
+                    0);
+            }
+            
+            return new Vector3 (
+                0,
+                0,
+                0);
         }
 
         public void OnDetachedFromGround ()
         {
+            Debug.Log ("Detached from ground");
             if (jumpCount == 0)
                 jumpCount = 1;
         }
 
         public void OnReturnedToGround ()
         {
+            Debug.Log ("Returned to ground");
             jumpCount = 0;
         }
     }

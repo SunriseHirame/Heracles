@@ -37,9 +37,13 @@ namespace Hirame.Heracles
     {
         [SerializeField] private AxisMask axisMask = AxisMask.XYZ;
         
+        [Range (0, 90)]
+        [SerializeField] private float maxSurfaceAngle = 60f;
+        
         private float drag = 1f;
             
-        public Vector3 Move (float acceleration, float targetSpeed, in Vector3 current, in SurfaceInfo surfaceInfo, float deltaTime)
+        public Vector3 GetVelocity (
+            float acceleration, float targetSpeed, in Vector3 current, in SurfaceInfo surfaceInfo, float deltaTime)
         {
             UpdateDrag (acceleration, targetSpeed);
             var velocityMagnitude = current.x;

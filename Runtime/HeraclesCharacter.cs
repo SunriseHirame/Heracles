@@ -8,23 +8,20 @@ namespace Hirame.Heracles
     
     public class HeraclesCharacter : MonoBehaviour
     {
-        [Header ("Debug")]
-        public float CurretVelocity;
-        public PhysicMaterial SurfaceMaterial;
-
         [Header ("Settings")]
         public float Speed = 5f;
         public float Acceleration = 20f;
         public float JumpHeight;
         public float StepHeight = 0.2f;
 
-        public bool RestoreGroundOnGroundCollision = true;
+        public bool GroundOnFullContact = true;
         public OrientationMode AlignTo = OrientationMode.Gravity;
 
         
         [Range (0, 1)]
         public float AirControl = 0.7f;
-        
+        public float GravityScale = 1f;
+
         [Header ("Motion")]
         [SerializeField] private KineticMover mover;
         [SerializeField] private JumpController jump;
@@ -41,8 +38,8 @@ namespace Hirame.Heracles
         private bool jumpFlag;
         
         private SurfaceInfo previousGroundInfo;
-        private SurfaceInfo wallInfoLeft;
-        private SurfaceInfo wallInfoRight;
+        private SurfaceInfo previousLeftWallInfo;
+        private SurfaceInfo previousRightWallInfo;
 
         private bool onGround;
         private bool hasMadeFullSurfaceContact;
@@ -63,73 +60,75 @@ namespace Hirame.Heracles
         public void FixedUpdate ()
         {
             var velocity = attachedRigidbody.velocity;
-            var input = Input.GetAxis ("Horizontal");
+            var input = GetDirectionalInput ();
 
-            PushSurfaceInfo ();
+            UpdateSurfaceInfo ();
+            UpdateGroundStatus ();
             
-            ref readonly var groundInfo = ref groundCheck.UpdateGroundInfo (attachedRigidbody.position, StepHeight);
-            wallInfoLeft = wallCheckLeft.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
-            wallInfoRight = wallCheckRight.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
-            
-            UpdateGroundStatus (in groundInfo);
-            
-            SurfaceMaterial = groundInfo.GetPhysicsMaterial ();
-
             Orientate ();
 
             ResolveJump (ref velocity);
 
-            var deltaTime = GetDeltaTime (previousGroundInfo.InContact);
-            var acceleration = input * Acceleration;
-            
-            var newVelocity = mover.Move (acceleration, Speed, velocity, in previousGroundInfo, deltaTime);
-            
-            CurretVelocity = newVelocity.x;
-            
-            attachedRigidbody.velocity = newVelocity;
-            attachedRigidbody.drag = math.abs (input) < 0.1f ? 1 : 0;
+            Move (input.x, in velocity);
         }
 
-        private void PushSurfaceInfo ()
+        private static Vector2 GetDirectionalInput ()
+        {
+            return new Vector2(
+                Input.GetAxis ("Horizontal"),
+                Input.GetAxis ("Vertical")
+                );
+        }
+
+        private void UpdateSurfaceInfo ()
         {
             previousGroundInfo = groundCheck.SurfaceInfo;
-            wallInfoLeft = wallCheckLeft.SurfaceInfo;
-            wallInfoRight = wallCheckRight.SurfaceInfo;
+            previousLeftWallInfo = wallCheckLeft.SurfaceInfo;
+            previousRightWallInfo = wallCheckRight.SurfaceInfo;
+            
+            
+            groundCheck.UpdateGroundInfo (attachedRigidbody.position, StepHeight);
+            wallCheckLeft.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
+            wallCheckRight.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
         }
 
-        private void UpdateGroundStatus (in SurfaceInfo groundInfo)
+        private void UpdateGroundStatus ()
         {
-            onGround = groundInfo.InContact;
-
-            if (RestoreGroundOnGroundCollision)
+            var wasOnGround = onGround;
+            onGround =groundCheck.SurfaceInfo.InContact;
+            
+            if (GroundOnFullContact)
                 onGround &= hasMadeFullSurfaceContact;
             
-            if (wallInfoLeft.InContact || wallInfoRight.InContact)
+            if (previousLeftWallInfo.InContact || previousRightWallInfo.InContact)
             {
                 //Debug.Log ($"{wallInfoLeft.ContactCollider} | {wallInfoRight.ContactCollider}");
             }
 
+            //Debug.Log ($"{onGround} | {previousGroundInfo.InContact}");
+
             if (onGround)
             {
-                if (!previousGroundInfo.InContact)
+                if (!wasOnGround)
                     jump.OnReturnedToGround ();
             }
-            else
+            else if (wasOnGround)
             {
-                if (previousGroundInfo.InContact)
-                {
-                    hasMadeFullSurfaceContact = false;
-                    jump.OnDetachedFromGround ();
-                }
+                hasMadeFullSurfaceContact = false;
+                jump.OnDetachedFromGround ();
             }
         }
         
         private void ResolveJump (ref Vector3 velocity)
         {
-            if (jumpFlag && jump.CanJump (in previousGroundInfo, in wallInfoLeft))
+            if (jumpFlag && jump.CanJump (in previousGroundInfo, in previousLeftWallInfo))
             {
-                var jumpVelocity = jump.GetJumpVelocity (JumpHeight, in previousGroundInfo, in wallInfoLeft);
-                velocity.y = jumpVelocity.y;
+                var gravity = Physics.gravity.y * GravityScale;
+                var jumpVelocity = jump.GetJumpVelocity (
+                    JumpHeight, gravity, in previousGroundInfo, in previousLeftWallInfo);
+                
+                velocity.y = math.clamp (velocity.y + jumpVelocity.y, jumpVelocity.y, jumpVelocity.y * 1.2f);
+                //onGround = false;
             }
 
             jumpFlag = false;
@@ -151,6 +150,20 @@ namespace Hirame.Heracles
             return math.lerp (deltaTime * AirControl * AirControl, deltaTime, control);
         }
 
+        private void Move (float input, in Vector3 currentVelocity)
+        {
+            ref readonly var groundInfo = ref groundCheck.SurfaceInfo;
+            
+            var deltaTime = GetDeltaTime (groundInfo.InContact);
+            var acceleration = input * Acceleration;
+            
+            var newVelocity = mover.GetVelocity (
+                acceleration, Speed, in currentVelocity, in groundInfo, deltaTime);
+            
+            attachedRigidbody.velocity = newVelocity;
+            attachedRigidbody.drag = math.abs (input) < 0.1f ? 1 : 0;
+        }
+        
         private void Orientate ()
         {
             switch (AlignTo)
@@ -170,7 +183,7 @@ namespace Hirame.Heracles
 
         private void OnCollisionEnter (Collision collision)
         {
-            if (!RestoreGroundOnGroundCollision)
+            if (!GroundOnFullContact)
                 return;
 
             var contacts = collision.contactCount;
