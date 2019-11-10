@@ -74,10 +74,15 @@ namespace Hirame.Heracles
 
         private static Vector2 GetDirectionalInput ()
         {
-            return new Vector2(
-                Input.GetAxis ("Horizontal"),
-                Input.GetAxis ("Vertical")
-                );
+            var inputX = Input.GetAxis ("Horizontal");
+            if (math.abs (inputX) < 0.1f)
+                inputX = 0;
+            
+            var inputY = Input.GetAxis ("Vertical");
+            if (math.abs (inputY) < 0.1f)
+                inputY = 0;
+            
+            return new Vector2 (inputX, inputY);
         }
 
         private void UpdateSurfaceInfo ()
