@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Runtime.CompilerServices;
+using UnityEngine;
 
 namespace Hirame.Heracles
 {
@@ -12,12 +13,6 @@ namespace Hirame.Heracles
 
         public Collider ContactCollider;
         public Vector3 Normal;
-
-        // readonly
-        public PhysicMaterial GetPhysicsMaterial ()
-        {
-            return ContactCollider ? ContactCollider.sharedMaterial : null;
-        }
         
         public bool IsOnLayer (LayerMask layer)
         {
@@ -26,6 +21,15 @@ namespace Hirame.Heracles
         
         private static readonly SurfaceInfo none = new SurfaceInfo ();
         public static ref readonly SurfaceInfo Default => ref none;
+    }
+
+    public static class SurfaceInfoExtensions
+    {
+        [MethodImpl (MethodImplOptions.AggressiveInlining)]
+        public static PhysicMaterial GetPhysicsMaterial (this in SurfaceInfo surfaceInfo)
+        {
+            return surfaceInfo.ContactCollider ? surfaceInfo.ContactCollider.sharedMaterial : null;
+        }
     }
 
 }

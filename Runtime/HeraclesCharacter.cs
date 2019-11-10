@@ -60,16 +60,16 @@ namespace Hirame.Heracles
         public void FixedUpdate ()
         {
             var velocity = attachedRigidbody.velocity;
-            var input = GetDirectionalInput ();
+            var directionalInput = GetDirectionalInput ();
 
             UpdateSurfaceInfo ();
             UpdateGroundStatus ();
             
             Orientate ();
 
-            ResolveJump (ref velocity);
+            ResolveJump (in directionalInput, ref velocity);
 
-            Move (input.x, in velocity);
+            Move (directionalInput.x, in velocity);
         }
 
         private static Vector2 GetDirectionalInput ()
@@ -85,11 +85,12 @@ namespace Hirame.Heracles
             previousGroundInfo = groundCheck.SurfaceInfo;
             previousLeftWallInfo = wallCheckLeft.SurfaceInfo;
             previousRightWallInfo = wallCheckRight.SurfaceInfo;
-            
-            
+
             groundCheck.UpdateGroundInfo (attachedRigidbody.position, StepHeight);
             wallCheckLeft.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
             wallCheckRight.UpdateGroundInfo (attachedRigidbody.position, 0.1f);
+            
+            //Debug.Log ($"{wallCheckLeft.SurfaceInfo.InContact} | {wallCheckRight.SurfaceInfo.InContact}");
         }
 
         private void UpdateGroundStatus ()
@@ -119,14 +120,21 @@ namespace Hirame.Heracles
             }
         }
         
-        private void ResolveJump (ref Vector3 velocity)
+        private void ResolveJump (in Vector2 directionalInput, ref Vector3 velocity)
         {
-            if (jumpFlag && jump.CanJump (in previousGroundInfo, in previousLeftWallInfo))
+            ref readonly var groundInfo = ref groundCheck.SurfaceInfo;
+            ref readonly var leftWallInfo = ref wallCheckLeft.SurfaceInfo;
+            ref readonly var rightWalInfo = ref wallCheckRight.SurfaceInfo;
+            
+            if (jumpFlag && jump.CanJump (in groundInfo, in leftWallInfo, in rightWalInfo))
             {
                 var gravity = Physics.gravity.y * GravityScale;
-                var jumpVelocity = jump.GetJumpVelocity (
-                    JumpHeight, gravity, in previousGroundInfo, in previousLeftWallInfo);
                 
+                var jumpVelocity = jump.GetJumpVelocity (
+                    JumpHeight, gravity, in directionalInput,
+                    in groundInfo, in leftWallInfo, in rightWalInfo);
+
+                velocity.x += jumpVelocity.x;
                 velocity.y = math.clamp (velocity.y + jumpVelocity.y, jumpVelocity.y, jumpVelocity.y * 1.2f);
                 //onGround = false;
             }
