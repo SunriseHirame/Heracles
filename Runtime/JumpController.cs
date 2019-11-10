@@ -79,15 +79,13 @@ namespace Hirame.Heracles
         private Vector3 GetWallJumpVelocity (float baseVelocity, in Vector2 directionalInput, float sign)
         {
             ref readonly var verticalControl = ref wallJump.Control;
-            var remappedInput = Mathf.Abs (directionalInput.x);
-            
-            var control = verticalControl.Max - verticalControl.Remap (remappedInput);
+            var remapped = math.remap (-1, 1, 0, 1, directionalInput.x * sign);
+            var control = verticalControl.Remap (remapped);
+
             var rotate = Quaternion.Euler (0, 0, 90 * control);
             
             var jumpVector = rotate * Vector2.up;
             jumpVector *= baseVelocity;
-            
-            Debug.Log (jumpVector);
             
             return new Vector3 (jumpVector.x * -sign, jumpVector.y, 0f);
         }
@@ -107,14 +105,12 @@ namespace Hirame.Heracles
         
         public void OnDetachedFromGround ()
         {
-            Debug.Log ("Detached from ground");
             if (jumpCount == 0)
                 jumpCount = 1;
         }
 
         public void OnReturnedToGround ()
         {
-            Debug.Log ("Returned to ground");
             jumpCount = 0;
         }
     }
