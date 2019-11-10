@@ -1,10 +1,6 @@
-﻿using System.Numerics;
-using Hirame.Pantheon;
+﻿using Hirame.Pantheon;
 using Unity.Mathematics;
 using UnityEngine;
-using Quaternion = UnityEngine.Quaternion;
-using Vector2 = UnityEngine.Vector2;
-using Vector3 = UnityEngine.Vector3;
 
 namespace Hirame.Heracles
 {
@@ -83,17 +79,17 @@ namespace Hirame.Heracles
         private Vector3 GetWallJumpVelocity (float baseVelocity, in Vector2 directionalInput, float sign)
         {
             ref readonly var verticalControl = ref wallJump.Control;
-            var remappedInput = math.remap (-1, 1, 0, 1, directionalInput.x);
+            var remappedInput = Mathf.Abs (directionalInput.x);
             
             var control = verticalControl.Max - verticalControl.Remap (remappedInput);
-            var rotate = Quaternion.Euler (0, 0, (1 - control) * 90 * -sign);
+            var rotate = Quaternion.Euler (0, 0, 90 * control);
             
             var jumpVector = rotate * Vector2.up;
             jumpVector *= baseVelocity;
             
             Debug.Log (jumpVector);
             
-            return new Vector3 (jumpVector.x * sign, jumpVector.y, 0f);
+            return new Vector3 (jumpVector.x * -sign, jumpVector.y, 0f);
         }
 
         private Vector3 GetAirJumpVelocity (float baseVelocity, in Vector2 directionalInput)
